@@ -1,0 +1,47 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+
+- task: Maven@4
+  displayName: 'Compile Application'
+  inputs:
+    mavenPomFile: 'pom.xml'
+    goals: 'clean compile'
+
+- task: Maven@4
+  displayName: 'Run Unit Tests'
+  inputs:
+    mavenPomFile: 'pom.xml'
+    goals: 'test'
+
+- task: Maven@4
+  displayName: 'Package Application'
+  inputs:
+    mavenPomFile: 'pom.xml'
+    goals: 'clean package'
+
+- task: Docker@2
+  displayName: 'Build and Push'
+  inputs:
+    command: 'buildAndPush'
+    repository: 'springboot-app'
+    dockerfile: '**/Dockerfile'
+    containerRegistry: 'azure-service-connection'
+    tags: |
+      latest
+
+- task: CmdLine@2
+  displayName: 'Install Trivy'
+  inputs:
+    script: |
+      curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
+  
+- task: CmdLine@2
+  displayName: 'Trivy Scan'
+  inputs:
+    script: |
+      ./bin/trivy image po9acr.azurecr.io/springboot-app:latest
